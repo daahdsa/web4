@@ -28,7 +28,7 @@ $hasErrors = false;
 
 if (!preg_match("/^[\p{L}\s]{2,150}$/u", $name)) {
     $hasErrors = true;
-    setError('name', $name);
+    setError('full_name', $name);
 }
 
 if (!preg_match("/^\+?[0-9\-\s]{7,30}$/", $phone)) {
