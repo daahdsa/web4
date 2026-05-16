@@ -1,10 +1,19 @@
 <?php
+header('Content-Type: text/html; charset=UTF-8');
+
+function setError($field, $value = '') {
+
+    setcookie($field . '_error', '1');
+
+    if ($value !== '') {
+        setcookie($field . '_value', $value);
+    }
+}
+
+
 $pdo = new PDO("mysql:host=localhost;dbname=u82283;charset=utf8","u82283","7013916");
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-function error($msg) {
-    die("<h3 style='color:red'>$msg</h3>");
-}
 
 $name = trim($_POST['full_name'] ?? '');
 $phone = trim($_POST['phone'] ?? '');
@@ -15,47 +24,63 @@ $bio = trim($_POST['bio'] ?? '');
 $languages = $_POST['languages'] ?? [];
 $contract = isset($_POST['contract']) ? 1 : 0;
 
+$hasErrors = false;
+
 if (!preg_match("/^[\p{L}\s]{2,150}$/u", $name)) {
     error("Некорректное ФИО");
+    $hasErrors = true;
+    setError('name', $name);
 }
 
 if (!preg_match("/^\+?[0-9\-\s]{7,30}$/", $phone)) {
     error("Некорректный телефон");
+      $hasErrors = true;
+    setError('phone', $phone);
 }
 
-if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+if (!preg_match('/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/', $email)) {
     error("Некорректный email");
+        setError('email', $email);
+
 }
 
-if (!$birth) {
-    error("Не указана дата рождения");
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $birth)) {
+
+    setError('birth_date', $birth);
+    $hasErrors = true;
 }
 
-$allowed_gender = ['male','female','other'];
-if (!in_array($gender, $allowed_gender)) {
-    error("Некорректный пол");
+if (!preg_match('/^(male|female|other)$/', $gender)) {
+
+    setError('gender', $gender);
+    $hasErrors = true;
 }
 
-if (strlen($bio) < 10) {
-    error("Биография слишком короткая");
+if (!preg_match('/^[\p{L}\p{N}\s.,!?()\-]{10,2000}$/u', $bio)) {
+
+    setError('bio', $bio);
+    $hasErrors = true;
+}
+
+if (empty($languages)) {
+
+    setcookie('languages_error', '1');
+    $hasErrors = true;
 }
 
 if (!$contract) {
-    error("Не подтвержден контракт");
+
+    setcookie('contract_error', '1');
+    $hasErrors = true;
 }
 
-if (!is_array($languages) || count($languages) < 1) {
-    error("Выберите хотя бы один язык");
+if ($hasErrors) {
+
+    header('Location: index.php');
+    exit();
 }
 
 $stmt = $pdo->query("SELECT id FROM programming_languages");
-$valid_ids = array_column($stmt->fetchAll(), 'id');
-
-foreach ($languages as $l) {
-    if (!in_array($l, $valid_ids)) {
-        error("Недопустимый язык программирования");
-    }
-}
 
 $stmt = $pdo->prepare("
 INSERT INTO applications
@@ -76,5 +101,17 @@ foreach ($languages as $langId) {
     $stmt->execute([$appId, $langId]);
 }
 
-echo "<h2 style='color:green'>Данные успешно сохранены</h2>";
+setcookie('full_name_value', $name, 1799913600);
+setcookie('phone_value', $phone, 1799913600);
+setcookie('email_value', $email, 1799913600);
+setcookie('birth_date_value', $birth, 1799913600);
+setcookie('gender_value', $gender, 1799913600);
+setcookie('bio_value', $bio, 1799913600);
+setcookie('languages_value', json_encode($languages), 1799913600);
+setcookie('contract_value', '1', 1799913600);
+
+setcookie('save', '1');
+
+header('Location: index.php');
+exit();
 ?>
