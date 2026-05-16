@@ -1,19 +1,21 @@
 <?php
 header('Content-Type: text/html; charset=UTF-8');
 
-function setError($field, $value = '') {
-
-    setcookie($field . '_error', '1');
-
-    if ($value !== '') {
-        setcookie($field . '_value', $value);
-    }
+function setValue($name, $value) {
+    setcookie($name . '_value', $value);
 }
 
+function setError($name) {
+    setcookie($name . '_error', '1');
+}
 
-$pdo = new PDO("mysql:host=localhost;dbname=u82283;charset=utf8","u82283","7013916");
+$pdo = new PDO(
+    "mysql:host=localhost;dbname=u82283;charset=utf8",
+    "u82283",
+    "7013916"
+);
+
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
 
 $name = trim($_POST['full_name'] ?? '');
 $phone = trim($_POST['phone'] ?? '');
@@ -21,64 +23,75 @@ $email = trim($_POST['email'] ?? '');
 $birth = $_POST['birth_date'] ?? '';
 $gender = $_POST['gender'] ?? '';
 $bio = trim($_POST['bio'] ?? '');
-$languages = $_POST['languages'] ?? [];
-$contract = isset($_POST['contract']) ? 1 : 0;
+$langs = $_POST['languages'] ?? [];
+$contract = isset($_POST['contract']);
 
 $hasErrors = false;
 
+setValue('full_name', $name);
+setValue('phone', $phone);
+setValue('email', $email);
+setValue('birth_date', $birth);
+setValue('gender', $gender);
+setValue('bio', $bio);
+setValue('languages', json_encode($langs));
+setValue('contract', $contract);
+
 if (!preg_match("/^[\p{L}\s]{2,150}$/u", $name)) {
-    $hasErrors = true;
-    setError('full_name', $name);
-}
-
-if (!preg_match("/^\+?[0-9\-\s]{7,30}$/", $phone)) {
-      $hasErrors = true;
-    setError('phone', $phone);
-}
-
-if (!preg_match('/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/', $email)) {
-    $hasErrors = true;
-        setError('email', $email);
-
-}
-
-if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $birth)) {
-
-    setError('birth_date', $birth);
+    setError('full_name');
     $hasErrors = true;
 }
 
-if (!preg_match('/^(male|female|other)$/', $gender)) {
-
-    setError('gender', $gender);
+if (!preg_match("/^[0-9+\-\s]{7,30}$/", $phone)) {
+    setError('phone');
     $hasErrors = true;
 }
 
-if (!preg_match('/^[\p{L}\p{N}\s.,!?()\-]{10,2000}$/u', $bio)) {
-
-    setError('bio', $bio);
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    setError('email');
     $hasErrors = true;
 }
 
-if (empty($languages)) {
+if (!preg_match("/^\d{4}-\d{2}-\d{2}$/", $birth)) {
+    setError('birth_date');
+    $hasErrors = true;
+}
 
+if (!in_array($gender, ['male','female','other'])) {
+    setError('gender');
+    $hasErrors = true;
+}
+
+if (!preg_match("/^[\p{L}\p{N}\s.,!?()\-]{10,2000}$/u", $bio)) {
+    setError('bio');
+    $hasErrors = true;
+}
+
+if (empty($langs)) {
     setcookie('languages_error', '1');
     $hasErrors = true;
 }
 
 if (!$contract) {
-
     setcookie('contract_error', '1');
     $hasErrors = true;
 }
 
 if ($hasErrors) {
-
-    header('Location: index.php');
+    header("Location: index.php");
     exit();
 }
 
 $stmt = $pdo->query("SELECT id FROM programming_languages");
+$valid = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+foreach ($langs as $l) {
+    if (!in_array($l, $valid)) {
+        setcookie('languages_error', '1');
+        header("Location: index.php");
+        exit();
+    }
+}
 
 $stmt = $pdo->prepare("
 INSERT INTO applications
@@ -86,30 +99,21 @@ INSERT INTO applications
 VALUES (?, ?, ?, ?, ?, ?, ?)
 ");
 
-$stmt->execute([$name, $phone, $email, $birth, $gender, $bio, $contract]);
+$stmt->execute([$name, $phone, $email, $birth, $gender, $bio, 1]);
 
-$appId = $pdo->lastInsertId();
+$id = $pdo->lastInsertId();
 
 $stmt = $pdo->prepare("
 INSERT INTO application_languages (application_id, language_id)
 VALUES (?, ?)
 ");
 
-foreach ($languages as $langId) {
-    $stmt->execute([$appId, $langId]);
+foreach ($langs as $l) {
+    $stmt->execute([$id, $l]);
 }
 
-setcookie('full_name_value', $name, 1799913600);
-setcookie('phone_value', $phone, 1799913600);
-setcookie('email_value', $email, 1799913600);
-setcookie('birth_date_value', $birth, 1799913600);
-setcookie('gender_value', $gender, 1799913600);
-setcookie('bio_value', $bio, 1799913600);
-setcookie('languages_value', json_encode($languages), 1799913600);
-setcookie('contract_value', '1', 1799913600);
+setcookie('save', '1', 1799913600);
 
-setcookie('save', '1');
-
-header('Location: index.php');
+header("Location: index.php");
 exit();
 ?>
