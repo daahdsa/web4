@@ -27,19 +27,17 @@ $contract = isset($_POST['contract']) ? 1 : 0;
 $hasErrors = false;
 
 if (!preg_match("/^[\p{L}\s]{2,150}$/u", $name)) {
-    error("Некорректное ФИО");
     $hasErrors = true;
     setError('name', $name);
 }
 
 if (!preg_match("/^\+?[0-9\-\s]{7,30}$/", $phone)) {
-    error("Некорректный телефон");
       $hasErrors = true;
     setError('phone', $phone);
 }
 
 if (!preg_match('/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/', $email)) {
-    error("Некорректный email");
+    $hasErrors = true;
         setError('email', $email);
 
 }
